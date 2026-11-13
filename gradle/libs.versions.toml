@@ -9,7 +9,6 @@ navigationCompose = "2.8.3"
 hilt = "2.52"
 hiltNavigationCompose = "1.2.0"
 ksp = "2.0.21-1.0.27"
-mlkitSegmentation = "16.0.0-beta6"
 coil = "2.7.0"
 coroutines = "1.9.0"
 
@@ -34,9 +33,6 @@ androidx-material-icons-extended = { group = "androidx.compose.material", name =
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }
 hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
-
-# ML Kit - Subject Segmentation (on-device background removal)
-mlkit-segmentation-selfie = { group = "com.google.mlkit", name = "segmentation-selfie", version.ref = "mlkitSegmentation" }
 
 # Coil (image loading)
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
