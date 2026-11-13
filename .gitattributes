@@ -1,0 +1,12 @@
+# Tratar el wrapper de Gradle como binario puro
+gradle/wrapper/gradle-wrapper.jar binary
+
+# Normalizar saltos de línea en texto
+*.kt text eol=lf
+*.kts text eol=lf
+*.xml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+*.properties text eol=lf
+gradlew text eol=lf
+gradlew.bat text eol=crlf
