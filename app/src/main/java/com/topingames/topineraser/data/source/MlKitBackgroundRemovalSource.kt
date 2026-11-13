@@ -3,8 +3,8 @@ package com.topingames.topineraser.data.source
 import android.graphics.Bitmap
 import android.graphics.Color
 import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.segmentation.subject.SubjectSegmentation
-import com.google.mlkit.vision.segmentation.subject.SubjectSegmenterOptions
+import com.google.mlkit.vision.segmentation.Segmentation
+import com.google.mlkit.vision.segmentation.selfie.SelfieSegmenterOptions
 import com.topingames.topineraser.domain.model.EraserResult
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -16,11 +16,11 @@ import javax.inject.Singleton
 class MlKitBackgroundRemovalSource @Inject constructor() {
 
     private val segmenter by lazy {
-        SubjectSegmentation.getClient(
-            SubjectSegmenterOptions.Builder()
-                .enableForegroundBitmap()
-                .build()
-        )
+        val options = SelfieSegmenterOptions.Builder()
+            .setDetectorMode(SelfieSegmenterOptions.SINGLE_IMAGE_MODE)
+            .enableRawSizeMask()
+            .build()
+        Segmentation.getClient(options)
     }
 
     fun removeBackground(sourceBitmap: Bitmap): Flow<EraserResult> = callbackFlow {
@@ -30,19 +30,12 @@ class MlKitBackgroundRemovalSource @Inject constructor() {
 
         segmenter.process(inputImage)
             .addOnSuccessListener { result ->
-                val foreground = result.foregroundBitmap
-                if (foreground != null) {
-                    trySend(EraserResult.Success(foreground))
-                } else {
-                    // Manual mask approach as fallback
-                    val mask = result.confidenceMasks?.firstOrNull()
-                    if (mask != null) {
-                        val output = applyMask(sourceBitmap, mask.buffer.array())
-                        trySend(EraserResult.Success(output))
-                    } else {
-                        trySend(EraserResult.Error("No se pudo segmentar la imagen"))
-                    }
-                }
+                val mask = result.buffer
+                val maskWidth = result.width
+                val maskHeight = result.height
+
+                val output = applyMask(sourceBitmap, mask.array(), maskWidth, maskHeight)
+                trySend(EraserResult.Success(output))
                 close()
             }
             .addOnFailureListener { e ->
@@ -53,15 +46,28 @@ class MlKitBackgroundRemovalSource @Inject constructor() {
         awaitClose { segmenter.close() }
     }
 
-    private fun applyMask(source: Bitmap, maskBuffer: ByteArray): Bitmap {
+    private fun applyMask(
+        source: Bitmap,
+        maskBytes: ByteArray,
+        maskWidth: Int,
+        maskHeight: Int
+    ): Bitmap {
         val output = source.copy(Bitmap.Config.ARGB_8888, true)
         val pixels = IntArray(source.width * source.height)
         output.getPixels(pixels, 0, source.width, 0, 0, source.width, source.height)
 
-        for (i in pixels.indices) {
-            val confidence = (maskBuffer[i].toInt() and 0xFF) / 255f
-            if (confidence < 0.5f) {
-                pixels[i] = Color.TRANSPARENT
+        val scaleX = maskWidth.toFloat() / source.width
+        val scaleY = maskHeight.toFloat() / source.height
+
+        for (y in 0 until source.height) {
+            for (x in 0 until source.width) {
+                val maskX = (x * scaleX).toInt().coerceIn(0, maskWidth - 1)
+                val maskY = (y * scaleY).toInt().coerceIn(0, maskHeight - 1)
+                val maskIndex = maskY * maskWidth + maskX
+                val confidence = (maskBytes[maskIndex].toInt() and 0xFF) / 255f
+                if (confidence < 0.5f) {
+                    pixels[y * source.width + x] = Color.TRANSPARENT
+                }
             }
         }
 

@@ -62,8 +62,8 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 
-    // ML Kit Subject Segmentation — on-device background removal
-    implementation(libs.mlkit.subject.segmentation)
+    // ML Kit Selfie Segmentation — bundled on-device, no Play Services needed
+    implementation(libs.mlkit.segmentation.selfie)
 
     // Coil for image loading/display
     implementation(libs.coil.compose)
