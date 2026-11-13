@@ -18,7 +18,7 @@ import javax.inject.Singleton
 class MlKitBackgroundRemovalSource @Inject constructor() {
 
     // Tolerance: how similar a pixel must be to background color to be removed (0-255)
-    private val tolerance = 30
+    private val tolerance = 45
 
     fun removeBackground(sourceBitmap: Bitmap): Flow<EraserResult> = flow {
         emit(EraserResult.Loading)
@@ -67,7 +67,7 @@ class MlKitBackgroundRemovalSource @Inject constructor() {
             enqueueIfBackground(width - 1, y)
         }
 
-        // BFS expansion
+        // BFS expansion — 8-directional (includes diagonals to catch corner-trapped areas)
         while (queue.isNotEmpty()) {
             val idx = queue.poll()
             val x = idx % width
@@ -76,6 +76,10 @@ class MlKitBackgroundRemovalSource @Inject constructor() {
             enqueueIfBackground(x + 1, y)
             enqueueIfBackground(x, y - 1)
             enqueueIfBackground(x, y + 1)
+            enqueueIfBackground(x - 1, y - 1)
+            enqueueIfBackground(x + 1, y - 1)
+            enqueueIfBackground(x - 1, y + 1)
+            enqueueIfBackground(x + 1, y + 1)
         }
 
         // Apply: make removed pixels transparent
