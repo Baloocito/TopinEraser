@@ -9,6 +9,7 @@ import com.topingames.topineraser.domain.usecase.RemoveBackgroundUseCase
 import com.topingames.topineraser.util.BitmapHolder
 import com.topingames.topineraser.util.ImageSaver
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,7 +24,8 @@ data class EditorUiState(
     val isProcessing: Boolean = false,
     val isSaving: Boolean = false,
     val error: String? = null,
-    val savedFileName: String? = null
+    val savedFileName: String? = null,
+    val tolerance: Int = 45
 )
 
 @HiltViewModel
@@ -36,16 +38,19 @@ class EditorViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(EditorUiState())
     val uiState: StateFlow<EditorUiState> = _uiState.asStateFlow()
 
+    private var processJob: Job? = null
+
     init {
         val source = bitmapHolder.sourceBitmap
         if (source != null) {
             _uiState.value = _uiState.value.copy(sourceBitmap = source)
-            processImage(source)
+            processImage(source, _uiState.value.tolerance)
         }
     }
 
-    private fun processImage(bitmap: Bitmap) {
-        removeBackgroundUseCase(bitmap)
+    private fun processImage(bitmap: Bitmap, tolerance: Int) {
+        processJob?.cancel()
+        processJob = removeBackgroundUseCase(bitmap, tolerance)
             .onEach { result ->
                 when (result) {
                     is EraserResult.Loading -> {
@@ -70,6 +75,12 @@ class EditorViewModel @Inject constructor(
                 }
             }
             .launchIn(viewModelScope)
+    }
+
+    fun applyTolerance(tolerance: Int) {
+        val source = _uiState.value.sourceBitmap ?: return
+        _uiState.value = _uiState.value.copy(tolerance = tolerance)
+        processImage(source, tolerance)
     }
 
     fun savePng(context: Context) {

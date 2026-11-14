@@ -12,6 +12,6 @@ class BackgroundRemovalRepositoryImpl @Inject constructor(
     private val mlKitSource: MlKitBackgroundRemovalSource
 ) : BackgroundRemovalRepository {
 
-    override fun removeBackground(bitmap: Bitmap): Flow<EraserResult> =
-        mlKitSource.removeBackground(bitmap)
+    override fun removeBackground(bitmap: Bitmap, tolerance: Int): Flow<EraserResult> =
+        mlKitSource.removeBackground(bitmap, tolerance)
 }

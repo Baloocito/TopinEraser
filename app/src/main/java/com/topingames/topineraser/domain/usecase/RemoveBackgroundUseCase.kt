@@ -9,6 +9,6 @@ import javax.inject.Inject
 class RemoveBackgroundUseCase @Inject constructor(
     private val repository: BackgroundRemovalRepository
 ) {
-    operator fun invoke(bitmap: Bitmap): Flow<EraserResult> =
-        repository.removeBackground(bitmap)
+    operator fun invoke(bitmap: Bitmap, tolerance: Int = 45): Flow<EraserResult> =
+        repository.removeBackground(bitmap, tolerance)
 }

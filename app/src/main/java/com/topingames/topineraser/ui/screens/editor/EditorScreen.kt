@@ -19,8 +19,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, FlowPreview::class)
 @Composable
 fun EditorScreen(
     onBack: () -> Unit,
@@ -29,7 +33,17 @@ fun EditorScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    // Mostrar snackbar al guardar
+    // Slider local state — debounce 400ms antes de reprocesar
+    var sliderValue by remember { mutableFloatStateOf(uiState.tolerance.toFloat()) }
+    val sliderFlow = remember { MutableStateFlow(sliderValue.toInt()) }
+
+    LaunchedEffect(Unit) {
+        sliderFlow
+            .debounce(400L)
+            .distinctUntilChanged()
+            .collect { tol -> viewModel.applyTolerance(tol) }
+    }
+
     LaunchedEffect(uiState.savedFileName) {
         if (uiState.savedFileName != null) {
             viewModel.dismissSavedMessage()
@@ -51,30 +65,66 @@ fun EditorScreen(
             )
         },
         bottomBar = {
-            if (uiState.resultBitmap != null) {
-                BottomAppBar {
-                    Button(
-                        onClick = { viewModel.savePng(context) },
+            if (uiState.resultBitmap != null || uiState.isProcessing) {
+                BottomAppBar(
+                    modifier = Modifier.wrapContentHeight()
+                ) {
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                            .height(56.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        enabled = !uiState.isSaving
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
                     ) {
-                        if (uiState.isSaving) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                        } else {
-                            Icon(Icons.Outlined.Save, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
+                        // Slider de tolerancia
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
                             Text(
-                                text = "Guardar PNG transparente",
-                                style = MaterialTheme.typography.titleMedium
+                                text = "Tolerancia",
+                                style = MaterialTheme.typography.labelMedium,
+                                modifier = Modifier.width(80.dp)
                             )
+                            Slider(
+                                value = sliderValue,
+                                onValueChange = { v ->
+                                    sliderValue = v
+                                    sliderFlow.value = v.toInt()
+                                },
+                                valueRange = 5f..120f,
+                                steps = 22,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                text = sliderValue.toInt().toString(),
+                                style = MaterialTheme.typography.labelMedium,
+                                modifier = Modifier.width(32.dp),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.End
+                            )
+                        }
+
+                        // Botón guardar
+                        Button(
+                            onClick = { viewModel.savePng(context) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            enabled = !uiState.isSaving && !uiState.isProcessing && uiState.resultBitmap != null
+                        ) {
+                            if (uiState.isSaving) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
+                            } else {
+                                Icon(Icons.Outlined.Save, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Guardar PNG transparente",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                            }
                         }
                     }
                 }
@@ -100,7 +150,7 @@ fun EditorScreen(
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
-                            text = "Procesando en tu dispositivo",
+                            text = "Tolerancia: ${uiState.tolerance}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -137,7 +187,6 @@ fun EditorScreen(
                             .padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Checkerboard background para transparencia
                         Box(
                             modifier = Modifier
                                 .weight(1f)

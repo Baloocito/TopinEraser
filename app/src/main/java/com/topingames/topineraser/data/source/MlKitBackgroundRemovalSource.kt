@@ -17,20 +17,17 @@ import javax.inject.Singleton
 @Singleton
 class MlKitBackgroundRemovalSource @Inject constructor() {
 
-    // Tolerance: how similar a pixel must be to background color to be removed (0-255)
-    private val tolerance = 45
-
-    fun removeBackground(sourceBitmap: Bitmap): Flow<EraserResult> = flow {
+    fun removeBackground(sourceBitmap: Bitmap, tolerance: Int = 45): Flow<EraserResult> = flow {
         emit(EraserResult.Loading)
         try {
-            val output = floodFillRemoveBackground(sourceBitmap)
+            val output = floodFillRemoveBackground(sourceBitmap, tolerance)
             emit(EraserResult.Success(output))
         } catch (e: Exception) {
             emit(EraserResult.Error(e.message ?: "Error desconocido"))
         }
     }
 
-    private fun floodFillRemoveBackground(source: Bitmap): Bitmap {
+    private fun floodFillRemoveBackground(source: Bitmap, tolerance: Int): Bitmap {
         val width = source.width
         val height = source.height
 
@@ -41,23 +38,20 @@ class MlKitBackgroundRemovalSource @Inject constructor() {
         val visited = BooleanArray(width * height)
         val toRemove = BooleanArray(width * height)
 
-        // Sample background color from multiple edge points for robustness
         val bgColor = sampleBackgroundColor(pixels, width, height)
 
-        // BFS flood fill from all 4 edges
         val queue = LinkedList<Int>()
 
         fun enqueueIfBackground(x: Int, y: Int) {
             if (x < 0 || x >= width || y < 0 || y >= height) return
             val idx = y * width + x
-            if (!visited[idx] && isSimilarColor(pixels[idx], bgColor)) {
+            if (!visited[idx] && isSimilarColor(pixels[idx], bgColor, tolerance)) {
                 visited[idx] = true
                 toRemove[idx] = true
                 queue.add(idx)
             }
         }
 
-        // Seed from all edges
         for (x in 0 until width) {
             enqueueIfBackground(x, 0)
             enqueueIfBackground(x, height - 1)
@@ -67,7 +61,6 @@ class MlKitBackgroundRemovalSource @Inject constructor() {
             enqueueIfBackground(width - 1, y)
         }
 
-        // BFS expansion — 8-directional (includes diagonals to catch corner-trapped areas)
         while (queue.isNotEmpty()) {
             val idx = queue.poll()
             val x = idx % width
@@ -82,40 +75,31 @@ class MlKitBackgroundRemovalSource @Inject constructor() {
             enqueueIfBackground(x + 1, y + 1)
         }
 
-        // Apply: make removed pixels transparent
         val outPixels = pixels.copyOf()
         for (i in outPixels.indices) {
-            if (toRemove[i]) {
-                outPixels[i] = Color.TRANSPARENT
-            }
+            if (toRemove[i]) outPixels[i] = Color.TRANSPARENT
         }
 
         output.setPixels(outPixels, 0, width, 0, 0, width, height)
         return output
     }
 
-    /**
-     * Sample background color from corners and edges, return the most common.
-     */
     private fun sampleBackgroundColor(pixels: IntArray, width: Int, height: Int): Int {
         val samples = listOf(
-            pixels[0],                          // top-left
-            pixels[width - 1],                  // top-right
-            pixels[(height - 1) * width],       // bottom-left
-            pixels[height * width - 1],         // bottom-right
-            pixels[(height / 2) * width],       // mid-left
-            pixels[(height / 2) * width + width - 1], // mid-right
-            pixels[width / 2],                  // top-mid
-            pixels[(height - 1) * width + width / 2]  // bottom-mid
+            pixels[0],
+            pixels[width - 1],
+            pixels[(height - 1) * width],
+            pixels[height * width - 1],
+            pixels[(height / 2) * width],
+            pixels[(height / 2) * width + width - 1],
+            pixels[width / 2],
+            pixels[(height - 1) * width + width / 2]
         )
-        // Return the most common sample (simple majority)
         return samples.groupBy { it }.maxByOrNull { it.value.size }?.key ?: pixels[0]
     }
 
-    private fun isSimilarColor(pixel: Int, reference: Int): Boolean {
-        // Ignore fully transparent pixels
+    private fun isSimilarColor(pixel: Int, reference: Int, tolerance: Int): Boolean {
         if (Color.alpha(pixel) < 10) return true
-
         val dr = Math.abs(Color.red(pixel) - Color.red(reference))
         val dg = Math.abs(Color.green(pixel) - Color.green(reference))
         val db = Math.abs(Color.blue(pixel) - Color.blue(reference))
