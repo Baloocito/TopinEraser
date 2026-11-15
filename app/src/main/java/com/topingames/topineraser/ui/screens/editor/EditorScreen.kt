@@ -6,6 +6,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Save
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -66,13 +67,15 @@ fun EditorScreen(
         },
         bottomBar = {
             if (uiState.resultBitmap != null || uiState.isProcessing) {
-                BottomAppBar(
-                    modifier = Modifier.wrapContentHeight()
+                Surface(
+                    tonalElevation = 3.dp,
+                    shadowElevation = 8.dp
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                            .navigationBarsPadding()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
                     ) {
                         // Slider de tolerancia
                         Row(
@@ -81,8 +84,8 @@ fun EditorScreen(
                         ) {
                             Text(
                                 text = "Tolerancia",
-                                style = MaterialTheme.typography.labelMedium,
-                                modifier = Modifier.width(80.dp)
+                                style = MaterialTheme.typography.labelLarge,
+                                modifier = Modifier.width(90.dp)
                             )
                             Slider(
                                 value = sliderValue,
@@ -96,11 +99,14 @@ fun EditorScreen(
                             )
                             Text(
                                 text = sliderValue.toInt().toString(),
-                                style = MaterialTheme.typography.labelMedium,
-                                modifier = Modifier.width(32.dp),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.width(36.dp),
                                 textAlign = androidx.compose.ui.text.style.TextAlign.End
                             )
                         }
+
+                        Spacer(modifier = Modifier.height(4.dp))
 
                         // Botón guardar
                         Button(
