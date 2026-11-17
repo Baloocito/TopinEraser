@@ -29,6 +29,7 @@ class ImageSaver @Inject constructor() {
                             MediaStore.MediaColumns.RELATIVE_PATH,
                             Environment.DIRECTORY_PICTURES + "/TopinEraser"
                         )
+                        put(MediaStore.MediaColumns.IS_PENDING, 1)
                     }
                     val uri = context.contentResolver.insert(
                         MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
@@ -37,6 +38,17 @@ class ImageSaver @Inject constructor() {
 
                     outputStream = context.contentResolver.openOutputStream(uri)
                         ?: error("No se pudo abrir el stream")
+
+                    outputStream.use { stream ->
+                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+                    }
+
+                    // Marcar como completo — crítico para que el alpha se preserve
+                    val doneValues = ContentValues().apply {
+                        put(MediaStore.MediaColumns.IS_PENDING, 0)
+                    }
+                    context.contentResolver.update(uri, doneValues, null, null)
+                    return@runCatching fileName
                 } else {
                     val dir = Environment.getExternalStoragePublicDirectory(
                         Environment.DIRECTORY_PICTURES + "/TopinEraser"

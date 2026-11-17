@@ -43,9 +43,15 @@ fun HomeScreen(
     ) { uri: Uri? ->
         uri?.let {
             val source = ImageDecoder.createSource(context.contentResolver, it)
-            val bitmap = ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
+            val decoded = ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
                 decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
                 decoder.isMutableRequired = true
+            }
+            // Forzar ARGB_8888 para preservar canal alpha en el resultado PNG
+            val bitmap = if (decoded.config == android.graphics.Bitmap.Config.ARGB_8888) {
+                decoded
+            } else {
+                decoded.copy(android.graphics.Bitmap.Config.ARGB_8888, true).also { decoded.recycle() }
             }
             viewModel.setSourceBitmap(bitmap)
             onImageSelected()
